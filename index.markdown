@@ -14,31 +14,24 @@ CpG_Me is an optimized and comprehensive WGBS alignment pipeline for a SLURM job
 0. [Overview](https://ben-laufer.github.io/CpG_Me#overview)
 1. [Quick Start](https://ben-laufer.github.io/CpG_Me#quick-start)
 2. [Installation](https://ben-laufer.github.io/CpG_Me#installation)
-3. [Chastity Filtering](https://ben-laufer.github.io/CpG_Me#chastity-filtering)
-4. [Merging Lanes](https://ben-laufer.github.io/CpG_Me#merging-lanes)
-5. [Correcting for Methylation Bias (m-bias)](https://ben-laufer.github.io/CpG_Me#correcting-for-methylation-bias-m-bias)
-   1. [Paired End (PE)](https://ben-laufer.github.io/CpG_Me#paired-end)
-   2. [Single End (SE)](https://ben-laufer.github.io/CpG_Me#single-end)
-   3. [M-Bias Examples](https://ben-laufer.github.io/CpG_Me#m-bias-examples)
-6. [Paired End (PE) Sequencing](https://ben-laufer.github.io/CpG_Me#paired-end-pe-sequencing)
-7. [Single End (SE) Sequencing](https://ben-laufer.github.io/CpG_Me#single-end-se-sequencing)
-8. [QC Report](https://ben-laufer.github.io/CpG_Me#qc-report)
-9. [DMR Calling](https://ben-laufer.github.io/CpG_Me#dmr-calling)
-10. [Citation](https://ben-laufer.github.io/CpG_Me#citation)
-11. [Publications](https://ben-laufer.github.io/CpG_Me#publications)
-12. [Acknowledgements](https://ben-laufer.github.io/CpG_Me#acknowledgements)
+3. [Merging Lanes](https://ben-laufer.github.io/CpG_Me#merging-lanes)
+4. [Correcting for Methylation Bias (m-bias)](https://ben-laufer.github.io/CpG_Me#correcting-for-methylation-bias-m-bias)
+5. [Run the Pipeline](https://ben-laufer.github.io/CpG_Me#run-the-pipeline)
+6. [QC Report](https://ben-laufer.github.io/CpG_Me#qc-report)
+7. [DMR Calling](https://ben-laufer.github.io/CpG_Me#dmr-calling)
+8. [Citation](https://ben-laufer.github.io/CpG_Me#citation)
+9. [Publications](https://ben-laufer.github.io/CpG_Me#publications)
+10. [Acknowledgements](https://ben-laufer.github.io/CpG_Me#acknowledgements)
 
 ## Overview
 
-A single command line call performs the following steps for all samples:
+A single command line call performs runs the main pipeline for all samples and a final command line call generates html QC/QA reports for all samples.
 
 ![Workflow](Examples/CpG_Me_Flowchart.png)
 
-A final command line call generates html QC/QA reports for all samples that easily enables the identification of failed samples and specifically what went wrong.
-
 ## Quick Start
 
-Assuming everything is installed and that you have paired-end 150 bp reads from the NovaSeq, where Swift's Accel-NGS Methyl-Seq Kit kit was used for library preparation, all you need to do is change to your working directory and run the following command for the human genome:
+Assuming everything is installed and that you used have 150 bp paired-end reads from the NovaSeq, all you need to do is change to your working directory and run the following command for the human genome:
 
 `sbatch --array=1-96 /share/lasallelab/programs/CpG_Me/Paired-end/CpG_Me_PE_controller.sh  hg38`
 
@@ -59,7 +52,7 @@ This workflow utilizes the following packages, which need to be installed and in
 
 I recommend using [Bioconda](https://bioconda.github.io) to install and manage the package updates, which can be accomplished by:
 
-`conda install -c bioconda trim-galore bismark fastq-screen picard multiqc`
+`conda install -c bioconda trim-galore bismark bowtie2 fastq-screen picard multiqc`
 
 Bisulfite converted genomes will also have to be created and placed in an external folder for the genome of interest as well as the genomes you would like to use to screen for contamination. This can be accomplished by using `bismark_genome_preperation`, which is detailed in the [Bismark docs](https://github.com/FelixKrueger/Bismark/tree/master/Docs), and example scripts are available in the [Genome_preperation folder](https://github.com/ben-laufer/CpG_Me/tree/master/Genome-preperation) of this repository. These scripts expect that each bisulfite converted genome is located in a `genomes` folder, which contains a folder for each genome within it (i.e. `hg38`). However, you can also download the prepared indices for a number of genomes via FastQ Screen with the command `fastq_screen --bisulfite --get_genomes`.
 
@@ -100,18 +93,6 @@ The overall folder structure should appear as:
 │   ├── hg38
 │   ├── mm10
 ```
-
-## Chastity Filtering
-
-This workflow assumes your data is Illumina quality/chastity filtered, which service providers these days will do by default. So, this step is a vestige for very old HiSeq data, and is something you probably don't need to worry about for new datasets.
-
-You can check by using the following command, where file.fastq.gz represents your file:
-
-`zcat BL001.fastq.gz | head -n 50`
-
-Essentially, you want to make sure all your reads contain `:N:` and none contain `:Y:`. If your reads aren’t chastity filtered you can accomplish this on command line via the command below, where you change BL001 to your sample name (see [ref](https://github.com/stephenturner/oneliners#find-xargs-and-gnu-parallel)):
-
-`zcat BL001*fastq.gz | zgrep -A 3 '^@.* [^:]*:N:[^:]*:' | zgrep -v "^--$" | gzip > BL001_filtered.fq.gz`
 
 ## Merging Lanes
 
@@ -185,7 +166,7 @@ Now, not only are your samples merged across lanes, but you now also have your `
 ## Correcting for Methylation Bias (m-bias)
 [Methylation bias (m-bias)](https://github.com/FelixKrueger/Bismark/tree/master/Docs#m-bias-plot) is a technical artifact where the 5' and 3' ends of reads contain artificial methylation levels due to the library preparation method (see Figure 2 in [Hansen *et al.*](https://www.ncbi.nlm.nih.gov/pubmed/23034175)). One example is the random priming used in post-bisulfite adapter tagging (PBAT) methods (read more [here](https://sequencing.qcfail.com/articles/mispriming-in-pbat-libraries-causes-methylation-bias-and-poor-mapping-efficiencies/)). In paired-end sequencing approaches, the m-bias can also differ between reads 1 and 2 (read more [here](https://sequencing.qcfail.com/articles/library-end-repair-reaction-introduces-methylation-biases-in-paired-end-pe-bisulfite-seq-applications/)). Therefore, it is important to always examine for this bias in the MultiQC reports. CpG m-bias can be used to guide trimming options, while CpH m-bias can be used to judge for incomplete bisulfite conversion. In our experience, we have come across the following parameters, although we recommend to examine every dataset, particularly when trying a new library preparation method or sequencing platform. In paired end approaches, the 5' end of read 2 tends to show the largest m-bias. 
 
-To address m-bias, the following parameters should be customized in the `CpG_Me_switch.sh` script:
+To address m-bias the provided scripts have reasonable defaults set, which are the first choices in the tables below. However, the `CpG_Me_switch.sh` script can be customized for different library preparation methods:
 
 ### Paired End (PE)
 
@@ -209,7 +190,7 @@ To address m-bias, the following parameters should be customized in the `CpG_Me_
 **Read 2**
 ![Read 2 M-Bias](Examples/mbias_r2.jpeg)
 
-## Paired End (PE) Sequencing
+## Run the Pipeline
 1.	Create a parent directory for the project
 2.	Within that parent project directory, add a text file called “task_samples.txt”, where each new line contains the entire sample name exactly as it appears on the fastq read pair files, aside from the end part (“_1.fq.gz” or “_2.fq.gz”). Only name a sample once, NOT twice, and make sure it is .fq.gz and not fastq.gz. Also, if you’re using excel or a windows desktop, you will need to change the linebreaks from windows to unix, which can be done using BBedit (File > Save As... > Line Breaks > Unix) or on command line (but make sure the files have different names):
 
@@ -241,8 +222,8 @@ Let’s break this apart:
 3.	The next call is the location of the executable shell script that will schedule all jobs with proper resources and dependencies on a per sample basis
 4.	Genome (hg38, rheMac8, mm10, rn6)
 
-## Single End (SE) Sequencing
-For single end sequencing, follow the same approach as paired end with minor changes.
+### Single End (SE) Sequencing
+For single end sequencing, follow the same approach as above but with minor changes.
 
 The directory should appear as:
 
@@ -268,7 +249,7 @@ To generate the QC report for single end sequencing data, the command is:
 
 `sbatch /share/lasallelab/programs/CpG_Me/Single-end/CpG_Me_SE_QC.sh` 
 
-An [example report](Examples/multiqc_report.html) for single end sequencing is available in the `Examples` folder. There is currently a minor glitch in the paired end reports, where the temporary files for the different reads create empty columns. This can be fixed by clicking on the configure columns button above the general statistics table and re-selecting one of the visibile columns. Also, these reports can be customized by modifying the multiqc_config.yaml files for the [paired end](Paired-end/multiqc_config_PE.yaml) and [single end](Single-end/multiqc_config_SE.yaml) pipelines. 
+These reports can be customized by modifying the multiqc_config.yaml files.
 
 ## DMR Calling
 Statistical testing for differentially methylated regions (DMRs) can be achieved by [DMRichR](https://github.com/ben-laufer/DMRichR), which utilizes the `cytosine_reports` folder created by CpG_Me. 
@@ -289,9 +270,9 @@ Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results f
 
 The following publications utilize **CpG_Me**:
 
-Laufer BI*, Neier KE*, Valenzuela AE, Yasui DH, Lein PJ, LaSalle JM. Genome-Wide DNA Methylation Profiles of Neurodevelopmental Disorder Genes in Mouse Placenta and Fetal Brain Following Prenatal Exposure to Polychlorinated Biphenyls. *bioRxiv* preprint, 2021. **doi**: [10.1101/2021.05.27.446011](https://doi.org/10.1101/2021.05.27.446011) 
+Laufer BI\*, Neier KE\*, Valenzuela AE, Yasui DH, Lein PJ, LaSalle JM. Genome-Wide DNA Methylation Profiles of Neurodevelopmental Disorder Genes in Mouse Placenta and Fetal Brain Following Prenatal Exposure to Polychlorinated Biphenyls. *bioRxiv* preprint, 2021. **doi**: [10.1101/2021.05.27.446011](https://doi.org/10.1101/2021.05.27.446011) 
 
-Laufer BI*, Gomez JA*, Jianu JM, LaSalle, JM.  Stable DNMT3L Overexpression in SH-SY5Y Neurons Recreates a Facet of the Genome-Wide Down Syndrome DNA Methylation Signature. *Epigenetics & Chromatin*, 2021. **doi**:[10.1186/s13072-021-00387-7](https://doi.org/10.1186/s13072-021-00387-7)
+Laufer BI\*, Gomez JA\*, Jianu JM, LaSalle, JM.  Stable DNMT3L Overexpression in SH-SY5Y Neurons Recreates a Facet of the Genome-Wide Down Syndrome DNA Methylation Signature. *Epigenetics & Chromatin*, 2021. **doi**:[10.1186/s13072-021-00387-7](https://doi.org/10.1186/s13072-021-00387-7)
 
 Maggio, AG., Shu, HT., Laufer, BI., Hwang, H., Bi, C., Lai, Y., LaSalle, JM., Hu, VW. Impact of exposures to persistent endocrine disrupting compounds on the sperm methylome in regions associated with neurodevelopmental disorders. *medRxiv* preprint, 2021. **doi**:[10.1101/2021.02.21.21252162](https://doi.org/10.1101/2021.02.21.21252162)
 
@@ -303,7 +284,7 @@ Wöste M, Leitão E, Laurentino S, Horsthemke B, Rahmann S, Schröder C. wg-blim
 
 Lopez SJ, Laufer BI, Beitnere U, Berg E, Silverman JL, Segal DJ, LaSalle JM. Imprinting effects of UBE3A loss on synaptic gene networks and Wnt signaling pathways. *Human Molecular Genetics*, 2019. **doi**: [10.1093/hmg/ddz221](https://doi.org/10.1093/hmg/ddz221) 
 
-Vogel Ciernia A*, Laufer BI*, Hwang H, Dunaway KW, Mordaunt CE, Coulson RL, Yasui DH, LaSalle JM. Epigenomic convergence of genetic and immune risk factors in autism brain. *Cerebral Cortex*, 2019. **doi**: [10.1093/cercor/bhz115](https://doi.org/10.1093/cercor/bhz115)
+Vogel Ciernia A\*, Laufer BI\*, Hwang H, Dunaway KW, Mordaunt CE, Coulson RL, Yasui DH, LaSalle JM. Epigenomic convergence of genetic and immune risk factors in autism brain. *Cerebral Cortex*, 2019. **doi**: [10.1093/cercor/bhz115](https://doi.org/10.1093/cercor/bhz115)
 
 Laufer BI, Hwang H, Vogel Ciernia A, Mordaunt CE, LaSalle JM. Whole genome bisulfite sequencing of Down syndrome brain reveals regional DNA hypermethylation and novel disease insights. *Epigenetics*, 2019. **doi**: [10.1080/15592294.2019.1609867](https://doi.org/10.1080/15592294.2019.1609867)
 
