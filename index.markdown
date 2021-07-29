@@ -25,7 +25,7 @@ CpG_Me is an optimized and comprehensive WGBS alignment pipeline for a SLURM job
 
 ## Overview
 
-A single command line call performs runs the main pipeline for all samples and a final command line call generates html QC/QA reports for all samples.
+A single command line call runs the main pipeline for all samples and a final command line call generates html QC/QA reports for all samples.
 
 ![Workflow](Examples/CpG_Me_Flowchart.png)
 
